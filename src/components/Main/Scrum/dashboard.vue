@@ -1,0 +1,256 @@
+<template>
+  <v-layout>
+    <v-data-table
+      :headers="headers"
+      :items="items"
+      hide-actions
+      :total-items="totalItems"
+      class="elevation-1">
+      <template slot="items" slot-scope="props">
+        <td>{{ props.item.name }}</td>
+        <td class="text-xs-center">{{ props.item.td }}</td>
+        <td class="text-xs-center">{{ props.item.ip }}</td>
+        <td class="text-xs-center">{{ props.item.dv }}</td>
+        <td class="text-xs-center">{{ props.item.im }}</td>
+        <td class="text-xs-center">{{ props.item.done }}</td>
+        <td class="text-xs-center">{{ props.item.total }}</td>
+      </template>
+    </v-data-table>
+    <v-flex>
+      <v-card dark>
+        <!--<v-img
+          src="https://cdn.vuetifyjs.com/images/cards/desert.jpg"
+          aspect-ratio="2.75"
+        ></v-img>-->
+        <v-card-title>
+          <div style="font-size: 40pt">
+            {{doneEstimate}}
+          </div>
+        </v-card-title>
+        <!--<v-card-actions>
+          <v-btn flat color="orange">Share</v-btn>
+          <v-btn flat color="orange">Explore</v-btn>
+        </v-card-actions>-->
+      </v-card>
+    </v-flex>
+
+    <v-card
+      width=200
+    >
+      <v-progress-circular
+      :rotate="270"
+      :size="150"
+      :width="5"
+      :value="completedPointsPercent"
+      color="teal"
+    >
+      <span style="font-size: 20pt">{{ completedPointsPercent }}%</span>
+    </v-progress-circular>
+      <v-card-title>
+        <div style="font-size: 14pt; width: 100%">
+          Completed <br/> (Points)
+        </div>
+      </v-card-title>
+    </v-card>
+    <v-card
+      width=200
+    >
+      <v-progress-circular
+        :rotate="270"
+        :size="150"
+        :width="5"
+        :value="implementedPointsPercent"
+        color="orange"
+      >
+        <span style="font-size: 20pt">{{ implementedPointsPercent }}%</span>
+      </v-progress-circular>
+      <v-card-title>
+        <div style="font-size: 14pt; width: 100%">
+          Implemented <br/> (Points)
+        </div>
+      </v-card-title>
+    </v-card>
+    <v-card
+      width=200
+    >
+      <v-progress-circular
+        :rotate="270"
+        :size="150"
+        :width="5"
+        :value="carryOverPointsPercent"
+        color="orange"
+      >
+        <span style="font-size: 20pt">{{ carryOverPointsPercent }}%</span>
+      </v-progress-circular>
+      <v-card-title>
+        <div style="font-size: 14pt; width: 100%">
+          Carry Over <br/> (Points)
+        </div>
+      </v-card-title>
+    </v-card>
+  </v-layout>
+</template>
+
+<script>
+export default {
+  name: 'dashboard',
+  data () {
+    return {
+      totalItems: 2,
+      committedPoints: 0,
+      averageVelocity: 0,
+      toDoCount: 0,
+      inProgressCount: 0,
+      devVerifyCount: 0,
+      implementedCount: 0,
+      doneCount: 0,
+      toDoEstimate: 0,
+      devVerifyEstimate: 0,
+      inProgressEstimate: 0,
+      implementedEstimate: 0,
+      doneEstimate: 0,
+      pointTotal: 0,
+      countTotal: 0,
+      issuesFromPreviousSprints: 0,
+      pointsFromPreviousSprints: 0,
+      headers: [
+        {
+          text: '',
+          align: 'left',
+          sortable: false,
+          value: 'name'
+        },
+        { text: 'To Do', value: 'td' },
+        { text: 'In Progress', value: 'ip' },
+        { text: 'Dev Verify', value: 'dv' },
+        { text: 'Implemented', value: 'im' },
+        { text: 'Done', value: 'done' },
+        { text: 'Total', value: 'total' }
+      ],
+      items: []
+    }
+  },
+  computed: {
+    velocity: function () {
+      return this.doneEstimate
+    },
+    completedPointsPercent: function () {
+      return Math.round(100 * this.doneEstimate / this.pointTotal)
+    },
+    implementedPointsPercent: function () {
+      return Math.round(100 * (this.doneEstimate + this.implementedEstimate) / this.pointTotal)
+    },
+    carryOverPointsPercent: function () {
+      return Math.round(100 * this.pointsFromPreviousSprints / this.pointTotal)
+    }
+  },
+  methods: {
+    // Calculate sprint metrics [toDo, inProgress, devVerify, implemented, done]
+    calculateSprintMetrics () {
+      this.committedPoints = this.$store.state.data.sprint.rapidView.allIssuesEstimateSum.value
+
+      this.$store.state.data.sprint.rapidView.issuesNotCompletedInCurrentSprint.forEach(x => {
+        switch (x.statusName.toLowerCase()) {
+          case 'new':
+          case 'open':
+          case 'reopened':
+          case 'ready for dev':
+            this.toDoCount++
+            this.toDoEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined ? x.currentEstimateStatistic.statFieldValue.value : 0
+            break
+          case 'in progress':
+          case 'assigned':
+          case 'pending':
+          case 'deferred':
+          case 'rejected':
+          case 'blocked':
+            if (x.assignee === 'sys_sipdevverifier') {
+              this.devVerifyCount++
+              this.devVerifyEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined ? x.currentEstimateStatistic.statFieldValue.value : 0
+            } else {
+              this.inProgressCount++
+              this.inProgressEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined ? x.currentEstimateStatistic.statFieldValue.value : 0
+            }
+            break
+          case 'implemented':
+          case 'resolved':
+            this.implementedCount++
+            this.implementedEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined ? x.currentEstimateStatistic.statFieldValue.value : 0
+            break
+        }
+      })
+
+      this.doneCount = this.$store.state.data.sprint.rapidView.completedIssues.length
+      this.doneEstimate = this.$store.state.data.sprint.rapidView.completedIssuesEstimateSum.value
+
+      this.countTotal = this.toDoCount + this.inProgressCount + this.devVerifyCount + this.implementedCount + this.doneCount
+      this.pointTotal = this.toDoEstimate + this.inProgressEstimate + this.devVerifyEstimate + this.implementedEstimate + this.doneEstimate
+
+      this.items = [
+        {value: false, name: 'Issues', td: this.toDoCount, ip: this.inProgressCount, dv: this.devVerifyCount, im: this.implementedCount, done: this.doneCount, total: this.countTotal},
+        {value: false, name: 'Points', td: this.toDoEstimate, ip: this.inProgressEstimate, dv: this.devVerifyEstimate, im: this.implementedEstimate, done: this.doneEstimate, total: this.pointTotal}
+      ]
+    },
+    // Calculate the number and percentage of issues that were assigned in previous sprints
+    calculateSprintFlux () {
+      let boardPreviousClosedSprints = this.getPreviousClosedBoardSprints(this.$store.state.data.sprint.info)
+
+      this.$store.state.data.sprint.fullIssues.forEach(issue => {
+        if (issue.fields.closedSprints !== undefined && issue.fields.closedSprints !== null) {
+          issue.fields.closedSprints.forEach(closedSprint => {
+            if (boardPreviousClosedSprints.find(x => {
+              return x.id === closedSprint.id &&
+                closedSprint.id !== this.$store.state.data.sprint.info.id
+            }) !== undefined) {
+              this.issuesFromPreviousSprints++
+              this.pointsFromPreviousSprints += issue.fields.customfield_11204
+            }
+          })
+        }
+      })
+    },
+    // Calculate the average velocity for the current sprint.
+    // average velocity = number of weeks per sprint * (sum of completed points in previous three sprints) / (sum of weeks in previous three sprints)
+    calculateAverageVelocity () {
+      let boardPreviousClosedSprints = this.getPreviousClosedBoardSprints(this.$store.state.data.sprint.info)
+      let index = boardPreviousClosedSprints.length - 3
+      let lastThreeSprints = []
+      let lastThreeSprintsWeeks = 0
+      let totalThreeSprintPoints = 0
+      // Get full sprint information
+      for (index; index < boardPreviousClosedSprints.length; index++) {
+        let sprintApi = '/rest/greenhopper/1.0/rapid/charts/sprintreport?rapidViewId=' + this.$store.state.data.board.id + '&sprintId=' + boardPreviousClosedSprints[index].id
+        this.$http.get(sprintApi, {auth: {username: this.$store.state.auth.user, password: this.$store.state.auth.password}})
+          .then(response => {
+            lastThreeSprintsWeeks += Math.round(this.$moment(response.data.sprint.completeDate).diff(this.$moment(response.data.sprint.startDate), 'weeks', true))
+            lastThreeSprints.push(response.data.contents)
+            if (lastThreeSprints.length === 3) {
+              totalThreeSprintPoints = lastThreeSprints.reduce((accumulator, x) => {
+                return accumulator + x.completedIssuesEstimateSum.value
+              }, 0)
+            }
+            this.averageVelocity = Math.round((totalThreeSprintPoints / lastThreeSprintsWeeks) * 2)
+            console.log(this.averageVelocity)
+          })
+      }
+    },
+    // get the three print prior to the targetSprint
+    getPreviousClosedBoardSprints (targetSprint) {
+      return this.$store.state.options.sprintList.filter(x => {
+        return x.state === 'closed' &&
+          x.originBoardId === this.$store.state.data.board.id &&
+          x.id !== this.$store.state.data.sprint.info.id &&
+          this.$moment(targetSprint.startDate).isAfter(this.$moment(x.startDate))
+      })
+    }
+  },
+  created () {
+    this.calculateSprintMetrics()
+    this.calculateSprintFlux()
+    this.calculateAverageVelocity()
+  }
+}
+</script>
+
+<style>
+</style>
