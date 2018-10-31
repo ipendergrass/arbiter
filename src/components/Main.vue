@@ -4,13 +4,11 @@
       :mini-variant.sync="mini"
       v-model="drawer"
       hide-overlay
-      floating
       style="height: 100vh">
       <v-toolbar flat class="transparent">
         <v-list class="pa-0">
           <v-list-tile avatar>
             <v-list-tile-avatar>
-              <!--<img src="https://randomuser.me/api/portraits/men/85.jpg">-->
               <img :src="$store.state.auth.self.avatarUrls['48x48']">
             </v-list-tile-avatar>
 

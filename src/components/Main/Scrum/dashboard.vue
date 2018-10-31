@@ -13,7 +13,6 @@
         <td class="text-xs-center">{{ props.item.dv }}</td>
         <td class="text-xs-center">{{ props.item.im }}</td>
         <td class="text-xs-center">{{ props.item.done }}</td>
-        <td class="text-xs-center">{{ props.item.total }}</td>
       </template>
     </v-data-table>
     <v-flex>
@@ -24,7 +23,7 @@
         ></v-img>-->
         <v-card-title>
           <div style="font-size: 40pt">
-            {{doneEstimate}}
+            {{stats.doneEstimate}}
           </div>
         </v-card-title>
         <!--<v-card-actions>
@@ -97,20 +96,23 @@ export default {
   data () {
     return {
       totalItems: 2,
-      committedPoints: 0,
-      averageVelocity: 0,
-      toDoCount: 0,
-      inProgressCount: 0,
-      devVerifyCount: 0,
-      implementedCount: 0,
-      doneCount: 0,
-      toDoEstimate: 0,
-      devVerifyEstimate: 0,
-      inProgressEstimate: 0,
-      implementedEstimate: 0,
-      doneEstimate: 0,
-      pointTotal: 0,
-      countTotal: 0,
+      stats: {
+        comittedPoints: 0,
+        averageVelocity: 0,
+        toDoCount: 0,
+        inProgressCount: 0,
+        devVerifyCount: 0,
+        implementedCount: 0,
+        doneCount: 0,
+        toDoEstimate: 0,
+        devVerifyEstimate: 0,
+        inProgressEstimate: 0,
+        implementedEstimate: 0,
+        doneEstimate: 0,
+        pointTotal: 0,
+        countTotal: 0
+      },
+
       previousSprints: {
         points: 0,
         issues: 0
@@ -126,39 +128,38 @@ export default {
         { text: 'In Progress', value: 'ip' },
         { text: 'Dev Verify', value: 'dv' },
         { text: 'Implemented', value: 'im' },
-        { text: 'Done', value: 'done' },
-        { text: 'Total', value: 'total' }
+        { text: 'Done', value: 'done' }
       ],
       items: []
     }
   },
   computed: {
     velocity: function () {
-      return this.doneEstimate
+      return this.stats.doneEstimate
     },
     completedPointsPercent: function () {
-      return Math.round(100 * this.doneEstimate / this.pointTotal)
+      return Math.round(100 * this.stats.doneEstimate / this.stats.pointTotal)
     },
     implementedPointsPercent: function () {
-      return Math.round(100 * (this.doneEstimate + this.implementedEstimate) / this.pointTotal)
+      return Math.round(100 * (this.stats.doneEstimate + this.stats.implementedEstimate) / this.stats.pointTotal)
     },
     carryOverPointsPercent: function () {
-      return Math.round(100 * this.previousSprints.points / this.pointTotal)
+      return Math.round(100 * this.previousSprints.points / this.stats.pointTotal)
     }
   },
   methods: {
     // Calculate sprint metrics [toDo, inProgress, devVerify, implemented, done]
-    calculateSprintMetrics () {
-      this.committedPoints = this.$store.state.data.sprint.rapidView.allIssuesEstimateSum.value
+    calculateSprintMetrics (stats, rapidView) {
+      stats.committedPoints = rapidView.allIssuesEstimateSum.value
 
-      this.$store.state.data.sprint.rapidView.issuesNotCompletedInCurrentSprint.forEach(x => {
+      rapidView.issuesNotCompletedInCurrentSprint.forEach(x => {
         switch (x.statusName.toLowerCase()) {
           case 'new':
           case 'open':
           case 'reopened':
           case 'ready for dev':
-            this.toDoCount++
-            this.toDoEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
+            stats.toDoCount++
+            stats.toDoEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
               ? x.currentEstimateStatistic.statFieldValue.value : 0
             break
           case 'in progress':
@@ -168,33 +169,58 @@ export default {
           case 'rejected':
           case 'blocked':
             if (x.assignee === 'sys_sipdevverifier') {
-              this.devVerifyCount++
-              this.devVerifyEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
+              stats.devVerifyCount++
+              stats.devVerifyEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
                 ? x.currentEstimateStatistic.statFieldValue.value : 0
             } else {
-              this.inProgressCount++
-              this.inProgressEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
+              stats.inProgressCount++
+              stats.inProgressEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
                 ? x.currentEstimateStatistic.statFieldValue.value : 0
             }
             break
           case 'implemented':
           case 'resolved':
-            this.implementedCount++
-            this.implementedEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
+            stats.implementedCount++
+            stats.implementedEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
               ? x.currentEstimateStatistic.statFieldValue.value : 0
             break
         }
       })
 
-      this.doneCount = this.$store.state.data.sprint.rapidView.completedIssues.length
-      this.doneEstimate = this.$store.state.data.sprint.rapidView.completedIssuesEstimateSum.value
+      stats.doneCount = rapidView.completedIssues.length
+      stats.doneEstimate = rapidView.completedIssuesEstimateSum.value
 
-      this.countTotal = this.toDoCount + this.inProgressCount + this.devVerifyCount + this.implementedCount + this.doneCount
-      this.pointTotal = this.toDoEstimate + this.inProgressEstimate + this.devVerifyEstimate + this.implementedEstimate + this.doneEstimate
+      stats.countTotal = stats.toDoCount +
+                         stats.inProgressCount +
+                         stats.devVerifyCount +
+                         stats.implementedCount +
+                         stats.doneCount
+
+      stats.pointTotal = stats.toDoEstimate +
+                        stats.inProgressEstimate +
+                        stats.devVerifyEstimate +
+                        stats.implementedEstimate +
+                        stats.doneEstimate
 
       this.items = [
-        {value: false, name: 'Issues', td: this.toDoCount, ip: this.inProgressCount, dv: this.devVerifyCount, im: this.implementedCount, done: this.doneCount, total: this.countTotal},
-        {value: false, name: 'Points', td: this.toDoEstimate, ip: this.inProgressEstimate, dv: this.devVerifyEstimate, im: this.implementedEstimate, done: this.doneEstimate, total: this.pointTotal}
+        {
+          value: false,
+          name: 'Issues (' + stats.countTotal + ')',
+          td: stats.toDoCount,
+          ip: stats.inProgressCount,
+          dv: stats.devVerifyCount,
+          im: stats.implementedCount,
+          done: stats.doneCount
+        },
+        {
+          value: false,
+          name: 'Points (' + stats.pointTotal + ')',
+          td: stats.toDoEstimate,
+          ip: stats.inProgressEstimate,
+          dv: stats.devVerifyEstimate,
+          im: stats.implementedEstimate,
+          done: stats.doneEstimate
+        }
       ]
     },
     // Calculate the number and percentage of issues that were assigned in previous sprints
@@ -265,7 +291,7 @@ export default {
     }
   },
   created () {
-    this.calculateSprintMetrics()
+    this.calculateSprintMetrics(this.stats, this.$store.state.data.sprint.rapidView)
 
     this.previousSprints = this.calculateSprintFlux(
       this.$store.state.data.sprint,

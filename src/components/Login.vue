@@ -27,7 +27,7 @@
                 <v-switch
                   :label="scrumSelected ? 'scrum' : 'kanban'"
                   v-model="scrumSelected"
-                  v-on:change="$store.commit('SET_METHODOLOGY', scrumSelected  ? 'scrum' : 'kanban')"
+                  v-on:change="onMethodologyChange"
                 />
                 <v-text-field v-model="user" prepend-icon="person" label="Username"></v-text-field>
                 <v-text-field v-model="password" prepend-icon="lock" label="Password" type="password"></v-text-field>
@@ -122,6 +122,9 @@ export default {
     }
   },
   methods: {
+    onMethodologyChange () {
+      this.$store.commit('SET_METHODOLOGY', this.scrumSelected ? 'scrum' : 'kanban')
+    },
     // Authenticate against Jira myself endpoint.
     authenticate () {
       let auth = {username: this.user, password: this.password}
@@ -150,6 +153,7 @@ export default {
 
       switch (brd.type) {
         case 'kanban':
+          this.$router.push({ name: 'kanbanDashboard' })
           break
         case 'scrum':
           this.getSprints(brd.id, 0)

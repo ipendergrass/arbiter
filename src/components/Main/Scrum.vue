@@ -14,11 +14,11 @@ export default {
   methods: {
     loadScrumNavigation () {
       let items = [
-        { title: 'scrumDashboard', page: 'scrumDashboard', icon: 'dashboard' },
-        { title: 'scrumDaily', icon: 'today' },
-        { title: 'scrumGrooming', icon: 'compare_arrows' },
-        { title: 'refresh', icon: 'refresh' },
-        { title: 'login', icon: 'person' }
+        { title: 'Dashboard', page: 'scrumDashboard', icon: 'dashboard' },
+        { title: 'Daily', icon: 'today' },
+        { title: 'Grooming', icon: 'compare_arrows' },
+        { title: 'Refresh', icon: 'refresh' },
+        { title: 'Login', page: 'login', icon: 'person' }
       ]
 
       this.$store.commit('SET_MENU_ITEMS', items)

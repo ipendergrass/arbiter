@@ -5,6 +5,7 @@ import Main from '@/components/Main'
 import Scrum from '@/components/Main/Scrum'
 import Kanban from '@/components/Main/Kanban'
 import ScrumDashboard from '@/components/Main/Scrum/dashboard'
+import KanbanDashboard from '@/components/Main/Kanban/dashboard'
 
 Vue.use(Router)
 
@@ -35,7 +36,13 @@ export default new Router({
         {
           path: '/kanban',
           name: 'kanban',
-          component: Kanban
+          component: Kanban,
+          children: [
+            {
+              path: 'dashboard',
+              name: 'kanbanDashboard',
+              component: KanbanDashboard
+            }]
         }]
     }
   ]
