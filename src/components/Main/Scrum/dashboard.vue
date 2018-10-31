@@ -111,8 +111,10 @@ export default {
       doneEstimate: 0,
       pointTotal: 0,
       countTotal: 0,
-      issuesFromPreviousSprints: 0,
-      pointsFromPreviousSprints: 0,
+      previousSprints: {
+        points: 0,
+        issues: 0
+      },
       headers: [
         {
           text: '',
@@ -141,7 +143,7 @@ export default {
       return Math.round(100 * (this.doneEstimate + this.implementedEstimate) / this.pointTotal)
     },
     carryOverPointsPercent: function () {
-      return Math.round(100 * this.pointsFromPreviousSprints / this.pointTotal)
+      return Math.round(100 * this.previousSprints.points / this.pointTotal)
     }
   },
   methods: {
@@ -156,7 +158,8 @@ export default {
           case 'reopened':
           case 'ready for dev':
             this.toDoCount++
-            this.toDoEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined ? x.currentEstimateStatistic.statFieldValue.value : 0
+            this.toDoEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
+              ? x.currentEstimateStatistic.statFieldValue.value : 0
             break
           case 'in progress':
           case 'assigned':
@@ -166,16 +169,19 @@ export default {
           case 'blocked':
             if (x.assignee === 'sys_sipdevverifier') {
               this.devVerifyCount++
-              this.devVerifyEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined ? x.currentEstimateStatistic.statFieldValue.value : 0
+              this.devVerifyEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
+                ? x.currentEstimateStatistic.statFieldValue.value : 0
             } else {
               this.inProgressCount++
-              this.inProgressEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined ? x.currentEstimateStatistic.statFieldValue.value : 0
+              this.inProgressEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
+                ? x.currentEstimateStatistic.statFieldValue.value : 0
             }
             break
           case 'implemented':
           case 'resolved':
             this.implementedCount++
-            this.implementedEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined ? x.currentEstimateStatistic.statFieldValue.value : 0
+            this.implementedEstimate += x.currentEstimateStatistic.statFieldValue.value !== undefined
+              ? x.currentEstimateStatistic.statFieldValue.value : 0
             break
         }
       })
@@ -192,35 +198,46 @@ export default {
       ]
     },
     // Calculate the number and percentage of issues that were assigned in previous sprints
-    calculateSprintFlux () {
-      let boardPreviousClosedSprints = this.getPreviousClosedBoardSprints(this.$store.state.data.sprint.info)
+    calculateSprintFlux (targetSprint, boardId, options) {
+      console.log('calculateSprintFlux')
+      let boardPreviousClosedSprints = this.getPreviousClosedBoardSprints(targetSprint.info,
+        options,
+        boardId)
 
-      this.$store.state.data.sprint.fullIssues.forEach(issue => {
+      let issuesFromPreviousSprints = 0
+      let pointsFromPreviousSprints = 0
+
+      targetSprint.fullIssues.forEach(issue => {
         if (issue.fields.closedSprints !== undefined && issue.fields.closedSprints !== null) {
           issue.fields.closedSprints.forEach(closedSprint => {
             if (boardPreviousClosedSprints.find(x => {
               return x.id === closedSprint.id &&
-                closedSprint.id !== this.$store.state.data.sprint.info.id
+                closedSprint.id !== targetSprint.info.id
             }) !== undefined) {
-              this.issuesFromPreviousSprints++
-              this.pointsFromPreviousSprints += issue.fields.customfield_11204
+              issuesFromPreviousSprints++
+              pointsFromPreviousSprints += issue.fields.customfield_11204
             }
           })
         }
       })
+      return {issues: issuesFromPreviousSprints, points: pointsFromPreviousSprints}
     },
     // Calculate the average velocity for the current sprint.
     // average velocity = number of weeks per sprint * (sum of completed points in previous three sprints) / (sum of weeks in previous three sprints)
-    calculateAverageVelocity () {
-      let boardPreviousClosedSprints = this.getPreviousClosedBoardSprints(this.$store.state.data.sprint.info)
+    calculateAverageVelocity (sprintInfo, boardId, options, issueTracker) {
+      console.log('calculateAverageVelocity')
+      let boardPreviousClosedSprints = this.getPreviousClosedBoardSprints(
+        sprintInfo,
+        options,
+        boardId)
+
       let index = boardPreviousClosedSprints.length - 3
       let lastThreeSprints = []
       let lastThreeSprintsWeeks = 0
       let totalThreeSprintPoints = 0
       // Get full sprint information
       for (index; index < boardPreviousClosedSprints.length; index++) {
-        let sprintApi = '/rest/greenhopper/1.0/rapid/charts/sprintreport?rapidViewId=' + this.$store.state.data.board.id + '&sprintId=' + boardPreviousClosedSprints[index].id
-        this.$http.get(sprintApi, {auth: {username: this.$store.state.auth.user, password: this.$store.state.auth.password}})
+        issueTracker.getSprintReport(boardId, boardPreviousClosedSprints[index].id)
           .then(response => {
             lastThreeSprintsWeeks += Math.round(this.$moment(response.data.sprint.completeDate).diff(this.$moment(response.data.sprint.startDate), 'weeks', true))
             lastThreeSprints.push(response.data.contents)
@@ -229,25 +246,37 @@ export default {
                 return accumulator + x.completedIssuesEstimateSum.value
               }, 0)
             }
-            this.averageVelocity = Math.round((totalThreeSprintPoints / lastThreeSprintsWeeks) * 2)
-            console.log(this.averageVelocity)
+            return Math.round((totalThreeSprintPoints / lastThreeSprintsWeeks) * 2)
+          })
+          .catch(error => {
+            console.log(error)
+            return undefined
           })
       }
     },
-    // get the three print prior to the targetSprint
-    getPreviousClosedBoardSprints (targetSprint) {
-      return this.$store.state.options.sprintList.filter(x => {
+    // get the three sprints prior to the targetSprint
+    getPreviousClosedBoardSprints (targetSprint, options, boardId) {
+      return options.sprintList.filter(x => {
         return x.state === 'closed' &&
-          x.originBoardId === this.$store.state.data.board.id &&
-          x.id !== this.$store.state.data.sprint.info.id &&
+          x.originBoardId === boardId &&
+          x.id !== targetSprint.id &&
           this.$moment(targetSprint.startDate).isAfter(this.$moment(x.startDate))
       })
     }
   },
   created () {
     this.calculateSprintMetrics()
-    this.calculateSprintFlux()
-    this.calculateAverageVelocity()
+
+    this.previousSprints = this.calculateSprintFlux(
+      this.$store.state.data.sprint,
+      this.$store.state.data.board.id,
+      this.$store.state.options)
+
+    this.averageVelocity = this.calculateAverageVelocity(
+      this.$store.state.data.sprint.info,
+      this.$store.state.data.board.id,
+      this.$store.state.options,
+      this.$issueTracker)
   }
 }
 </script>

@@ -124,14 +124,17 @@ export default {
   methods: {
     // Authenticate against Jira myself endpoint.
     authenticate () {
-      this.$http.get('/rest/api/2/myself', {auth: {username: this.user, password: this.password}})
+      let auth = {username: this.user, password: this.password}
+      this.$issueTracker.authenticate(auth)
         .then(response => {
+          this.$issueTracker.setAuth(auth)
           this.$store.commit('SET_AUTHORIZED', true)
           this.$store.commit('SET_USER', response.data)
           this.$store.commit('SET_PASSWORD', this.password)
 
-          this.$http.get('/rest/agile/1.0/board?name=ISS%20IDE&maxResults=1000', {auth: {username: this.$store.state.auth.user, password: this.$store.state.auth.password}})
+          this.$issueTracker.getBoards('ISS IDE')
             .then(response => {
+              console.log(response)
               response.data.values.forEach(x => {
                 this.$store.commit('ADD_TO_BOARD_LIST', x)
               })
@@ -159,8 +162,8 @@ export default {
     // On sprint change, take appropriate actions
     sprintChange (sprint) {
       this.$store.commit('SET_SPRINT', sprint)
-      let sprintApi = '/rest/greenhopper/1.0/rapid/charts/sprintreport?rapidViewId=' + this.$store.state.data.board.id + '&sprintId=' + this.$store.state.data.sprint.info.id
-      this.$http(sprintApi, {auth: {username: this.$store.state.auth.user, password: this.$store.state.auth.password}})
+      this.$issueTracker.getSprintReport(this.$store.state.data.board.id,
+        this.$store.state.data.sprint.info.id)
         .then((response) => {
           this.$store.commit('SET_SPRINT_RAPID_VIEW', response.data.contents)
           this.getSprintFullIssues()
@@ -168,8 +171,7 @@ export default {
     },
     // Retrieve all sprints for the selected board
     getSprints (board, count) {
-      let sprintListApi = '/rest/agile/1.0/board/' + board + '/sprint?startAt=' + count
-      this.$http.get(sprintListApi, {auth: {username: this.$store.state.auth.user, password: this.$store.state.auth.password}})
+      this.$issueTracker.getSprintList(board, count)
         .then(response => {
           this.$store.commit('CLEAR_SPRINT_LIST')
           response.data.values.forEach(x => {
@@ -217,8 +219,10 @@ export default {
       //   issueKeys += '\'' + x.key + '\', '
       // })
       // let sprintFullIssuesApi = '/rest/api/2/search?jql=key in (' + issueKeys.substr(0, issueKeys.length - 2) + ')&sprintId=' + this.$store.state.data.sprint.info.id
-      let sprintFullIssuesApi = '/rest/agile/1.0/board/' + this.$store.state.data.board.id + '/sprint/' + this.$store.state.data.sprint.info.id + '/issue?maxResults=1000&jql=key in (' + issueKeys.substr(0, issueKeys.length - 2) + ')&fields=closedSprints,customfield_11204'
-      this.$http.get(sprintFullIssuesApi, {auth: {username: this.$store.state.auth.user, password: this.$store.state.auth.password}})
+
+      this.$issueTracker.getSprintIssues(this.$store.state.data.board.id,
+        this.$store.state.data.sprint.info.id,
+        issueKeys.substr(0, issueKeys.length - 2))
         .then(response => {
           this.$store.commit('SET_SPRINT_FULL_ISSUES', response.data.issues)
           this.$router.push({ name: 'scrumDashboard' })
@@ -229,8 +233,7 @@ export default {
     },
     // Retrieve all issues in the backlog
     getSprintBacklog () {
-      let backlogApi = '/rest/agile/1.0/board/' + this.$store.state.data.board.id + '/backlog?maxResults=1000'
-      this.$http.get(backlogApi, {auth: {username: this.$store.state.auth.user, password: this.$store.state.auth.password}})
+      this.$issueTracker.getSprintBacklog(this.$store.state.data.board.id)
         .then(response => {
           this.$store.commit('SET_SPRINT_BACKLOG', response.data.issues)
         })

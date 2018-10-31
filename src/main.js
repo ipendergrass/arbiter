@@ -8,6 +8,8 @@ import Vuetify from 'vuetify'
 import 'babel-polyfill'
 import store from './store'
 
+import Jira from './services/Jira'
+
 import moment from 'moment'
 import VueMomentJS from 'vue-momentjs'
 
@@ -18,6 +20,7 @@ Vue.use(VueMomentJS, moment)
 
 Vue.http = Vue.prototype.$http = axios
 Vue.config.productionTip = false
+Vue.issueTracker = Vue.prototype.$issueTracker = Jira
 
 /* eslint-disable no-new */
 new Vue({
