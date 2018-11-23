@@ -3,7 +3,7 @@
 > Started with the belief that the process and product should be indistinguishable from one another, Arbiter is an attempt to codify Agile software development.
 > If the end result of the process is a software product, can the end result of a software product be a process? 
 
-> Arbiter attempts to move as much of the process as possible into repeatable, reliable code. Leaving scrum teams with only the work that is closest to the product. 
+> Arbiter attempts to move as much of the process as possible into repeatable, reliable code. Leaving agile teams with only the work that is closest to the product. 
 
 ## Build Setup
 
