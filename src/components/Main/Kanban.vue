@@ -16,6 +16,7 @@ export default {
       let items = [
         { title: 'Dashboard', page: 'KanbanDashboard', icon: 'dashboard' },
         { title: 'Daily', icon: 'today' },
+        { title: 'Games', page: 'game', icon: 'videogame_asset' },
         { title: 'Refresh', icon: 'refresh' },
         { title: 'Login', page: 'login', icon: 'person' }
       ]

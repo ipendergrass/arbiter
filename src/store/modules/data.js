@@ -2,7 +2,7 @@ const state = {
   methodology: 'scrum',
   epics: [],
   board: [],
-  sprint: { info: {}, burndown: [], rapidView: {}, fullIssues: [], backlog: [] },
+  sprint: { info: {}, burndown: [], rapidView: {}, fullIssues: [], backlog: [], epics: [] },
   kanban: { report: {}, fullIssues: [], controlChart: {} }
 }
 
@@ -36,6 +36,9 @@ const mutations = {
   },
   SET_SPRINT_FULL_ISSUES (state, data) {
     state.sprint.fullIssues = data
+  },
+  SET_SPRINT_EPICS (state, data) {
+    state.sprint.epics = data
   },
   SET_KANBAN (state, data) {
     state.kanban.report = data

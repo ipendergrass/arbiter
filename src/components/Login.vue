@@ -1,5 +1,8 @@
 <template>
-  <v-container fluid>
+  <div v-if="$isIE11">
+    You're gonna need a better browser!!
+  </div>
+  <v-container fluid v-else>
     <v-layout align-center justify-center row fill-height>
       <v-flex class="white elevation-20" xs6 >
         <v-stepper v-model="e1">
@@ -107,6 +110,7 @@
 </template>
 
 <script>
+import _ from 'lodash'
 export default {
   name: 'Login',
   data () {
@@ -118,7 +122,8 @@ export default {
       password: '',
       sprintLabel: 'active',
       scrumSelected: true,
-      activeSprints: true
+      activeSprints: true,
+      ready: {count: 2, hits: 0}
     }
   },
   methods: {
@@ -157,7 +162,7 @@ export default {
           break
         case 'scrum':
           this.getSprints(brd.id, 0)
-          this.getSprintBacklog()
+          this.getBacklog()
           break
         default:
           break
@@ -170,7 +175,10 @@ export default {
         this.$store.state.data.sprint.info.id)
         .then((response) => {
           this.$store.commit('SET_SPRINT_RAPID_VIEW', response.data.contents)
-          this.getSprintFullIssues()
+          let epics = []
+          this.getSprintFullIssues(epics)
+          this.$store.commit('SET_SPRINT_EPICS', _.uniqBy(epics, 'epicKey'))
+          this.nextPage()
         })
     },
     // Retrieve all sprints for the selected board
@@ -211,12 +219,14 @@ export default {
       return sprints
     },
     // Retrieve the full issue objects for the current sprint
-    getSprintFullIssues () {
+    getSprintFullIssues (epics) {
       let issueKeys = ''
       this.$store.state.data.sprint.rapidView.completedIssues.forEach(x => {
+        this.extractEpicFromIssue(x, epics)
         issueKeys += '\'' + x.key + '\', '
       })
       this.$store.state.data.sprint.rapidView.issuesNotCompletedInCurrentSprint.forEach(x => {
+        this.extractEpicFromIssue(x, epics)
         issueKeys += '\'' + x.key + '\', '
       })
       // this.$store.state.data.sprint.rapidView.puntedIssues.forEach(x => {
@@ -229,18 +239,35 @@ export default {
         issueKeys.substr(0, issueKeys.length - 2))
         .then(response => {
           this.$store.commit('SET_SPRINT_FULL_ISSUES', response.data.issues)
-          this.$router.push({ name: 'scrumDashboard' })
         })
         .catch(reason => {
           console.log(reason)
         })
     },
+    extractEpicFromIssue (issue, epics) {
+      console.log(issue)
+      if (issue.epicField !== undefined) {
+        let iss = epics.find(x => { return x.epicKey === issue.epicField.epicKey })
+        if (iss !== undefined) {
+          iss['issueCount'] += 1
+        } else {
+          issue.epicField['issueCount'] = 1
+          epics.push(issue.epicField)
+        }
+      }
+    },
     // Retrieve all issues in the backlog
-    getSprintBacklog () {
+    getBacklog () {
       this.$issueTracker.getSprintBacklog(this.$store.state.data.board.id)
         .then(response => {
           this.$store.commit('SET_SPRINT_BACKLOG', response.data.issues)
+          this.nextPage()
         })
+    },
+    nextPage () {
+      if (this.ready.count === ++this.ready.hits) {
+        this.$router.push({ name: 'scrumDashboard' })
+      }
     }
   },
   created () {
